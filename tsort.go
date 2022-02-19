@@ -1,75 +1,65 @@
 package tsort
 
-type Node interface {
-	comparable
+type GraphOfIDs[ID NodeID] interface {
+	NodeIDs() []ID
+	EdgeIDs(ID) []ID
 }
 
-type Cycle[N Node] struct {
-	Path []N
+type NodeID comparable
+
+type Cycle[ID NodeID] struct {
+	Path []ID
 }
 
-func (c *Cycle[Node]) Error() string {
+func (c *Cycle[NodeID]) Error() string {
 	return "cycle detected"
 }
 
-type DiGraph[N Node] interface {
-	Nodes(func(N) error) error
-	Edges(N, func(N) error) error
-}
-
-type state[N Node] struct {
-	graph  DiGraph[N]
-	frozen map[N]bool
-	result []N
-}
-
-func TSort[G DiGraph[N], N Node](g G) ([]N, error) {
-	s := &state[N]{
+func SortIDs[ID NodeID](g GraphOfIDs[ID]) ([]ID, error) {
+	ids := g.NodeIDs()
+	s := &state[ID]{
 		graph:  g,
-		frozen: make(map[N]bool),
-		result: make([]N, 0),
+		frozen: make(map[ID]bool, len(ids)),
+		result: make([]ID, 0),
 	}
 
-	err := g.Nodes(func(node N) error {
-		cycle, err := s.dfs(node)
-		if cycle != nil {
-			return cycle
+	for _, id := range ids {
+		if cycle := s.dfs(id); cycle != nil {
+			return nil, cycle
 		}
-		return err
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	return s.result, nil
 }
 
-func (s *state[Node]) dfs(node Node) (*Cycle[Node], error) {
-	if frozen, ok := s.frozen[node]; ok {
+type state[ID NodeID] struct {
+	graph  GraphOfIDs[ID]
+	frozen map[ID]bool
+	result []ID
+}
+
+func (s *state[NodeID]) dfs(id NodeID) *Cycle[NodeID] {
+	if frozen, ok := s.frozen[id]; ok {
 		if frozen {
-			return nil, nil
+			return nil
 		} else {
-			return &Cycle[Node]{
-				Path: []Node{node},
-			}, nil
+			return &Cycle[NodeID]{
+				Path: []NodeID{id},
+			}
 		}
 	}
-	s.frozen[node] = false
+	s.frozen[id] = false
 
-	err := s.graph.Edges(node, func(edge Node) error {
-		cycle, err := s.dfs(edge)
-		if cycle != nil {
+	edges := s.graph.EdgeIDs(id)
+	for _, edge := range edges {
+		if cycle := s.dfs(edge); cycle != nil {
 			cycle.Path = append(cycle.Path, edge)
 			return cycle
 		}
-		return err
-	})
-	if err != nil {
-		return nil, err
 	}
 
-	s.result = append(s.result, node)
-	s.frozen[node] = true
+	s.result = append(s.result, id)
+	s.frozen[id] = true
 
-	return nil, nil
+	return nil
 }

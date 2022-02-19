@@ -3,38 +3,34 @@ package main
 import (
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/sjansen/tsort"
 )
 
+var _ tsort.GraphOfIDs[string] = Graph{}
+
 type Graph map[string][]string
 
-var _ tsort.DiGraph[string] = Graph{}
-
-func (g Graph) Nodes(fn func(node string) error) error {
-	nodes := make([]string, 0, len(g))
-	for node, edges := range g {
-		nodes = append(nodes, node)
-		sort.Strings(edges)
-	}
-	sort.Strings(nodes)
-
-	for _, node := range nodes {
-		if err := fn(node); err != nil {
-			return err
-		}
-	}
-	return nil
+func NewGraph() Graph {
+	return Graph{}
 }
 
-func (g Graph) Edges(node string, fn func(edge string) error) error {
-	for _, edge := range g[node] {
-		if err := fn(edge); err != nil {
-			return err
-		}
+func (g Graph) AddNode(node string, edges ...string) Graph {
+	g[node] = edges
+	return g
+}
+
+func (g Graph) NodeIDs() []string {
+	nodes := make([]string, 0, len(g))
+	for node := range g {
+		nodes = append(nodes, node)
 	}
-	return nil
+	return nodes
+}
+
+func (g Graph) EdgeIDs(node string) []string {
+	edges := g[node]
+	return edges
 }
 
 func main() {
@@ -45,16 +41,15 @@ func main() {
 	const popd = "popd"
 	const pushd = "pushd /tmp"
 
-	g := Graph{
-		open:    []string{convert, popd},
-		brew:    []string{},
-		convert: []string{brew, curl, pushd},
-		curl:    []string{pushd},
-		popd:    []string{convert, curl},
-		pushd:   []string{},
-	}
+	g := NewGraph().
+		AddNode(brew).
+		AddNode(convert, brew, curl, pushd).
+		AddNode(curl, pushd).
+		AddNode(open, convert, popd).
+		AddNode(popd, convert, curl).
+		AddNode(pushd)
 
-	if script, err := tsort.TSort[Graph, string](g); err != nil {
+	if script, err := tsort.SortIDs[string](g); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 	} else {
 		fmt.Println("#!/bin/sh")

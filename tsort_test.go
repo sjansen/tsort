@@ -7,34 +7,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var _ GraphOfIDs[string] = Graph{}
+
 type Graph map[string][]string
 
-var _ DiGraph[string] = Graph{}
-
-func (g Graph) Nodes(fn func(node string) error) error {
-	// Sorting is required for stable result order.
+func (g Graph) NodeIDs() []string {
 	nodes := make([]string, 0, len(g))
-	for node, edges := range g {
+	for node := range g {
 		nodes = append(nodes, node)
-		sort.Strings(edges)
 	}
-	sort.Strings(nodes)
 
-	for _, node := range nodes {
-		if err := fn(node); err != nil {
-			return err
-		}
-	}
-	return nil
+	sort.Strings(nodes) // Sorting is required for consistent result.
+	return nodes
 }
 
-func (g Graph) Edges(node string, fn func(edge string) error) error {
-	for _, edge := range g[node] {
-		if err := fn(edge); err != nil {
-			return err
-		}
-	}
-	return nil
+func (g Graph) EdgeIDs(node string) []string {
+	edges := g[node]
+
+	sort.Strings(edges) // Sorting is required for consistent result.
+	return edges
 }
 
 func TestHappyPath(t *testing.T) {
@@ -81,7 +72,7 @@ func TestHappyPath(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			require := require.New(t)
 
-			actual, err := TSort[Graph, string](tc.graph)
+			actual, err := SortIDs[string](tc.graph)
 			require.NoError(err)
 			require.Equal(tc.expected, actual)
 		})
