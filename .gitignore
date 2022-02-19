@@ -1,0 +1,12 @@
+# Directories
+/.idea/
+/.vscode/
+/archive/
+
+# Files
+/.envrc
+/TODO
+.DS_Store
+
+# Patterns
+.*.sw[op]
