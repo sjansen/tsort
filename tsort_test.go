@@ -12,6 +12,7 @@ type Graph map[string][]string
 var _ DiGraph[string] = Graph{}
 
 func (g Graph) Nodes(fn func(node string) error) error {
+	// Sorting is required for stable result order.
 	nodes := make([]string, 0, len(g))
 	for node, edges := range g {
 		nodes = append(nodes, node)
